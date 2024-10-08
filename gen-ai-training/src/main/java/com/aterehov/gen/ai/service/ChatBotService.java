@@ -8,6 +8,4 @@ public interface ChatBotService {
     //Mono<ChatBotResponse> getResponse(Mono<ChatBotRequest> chatBotRequest);
 
     Mono<String> getResponse(Mono<ChatBotRequest> chatBotRequest);
-
-    String getResponse(ChatBotRequest chatBotRequest);
 }

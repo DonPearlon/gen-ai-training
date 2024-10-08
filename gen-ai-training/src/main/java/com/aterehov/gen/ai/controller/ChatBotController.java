@@ -14,13 +14,8 @@ public class ChatBotController {
 
     private final ChatBotService chatBotService;
 
-    /*@PostMapping("/chat")
-    public Mono<String> getResponse(@RequestBody final Mono<ChatBotRequest> chatBotRequest) {
-        return chatBotService.getResponse(chatBotRequest);
-    }*/
-
     @PostMapping("/chat")
-    public String getResponse(@RequestBody final ChatBotRequest chatBotRequest) {
+    public Mono<String> getResponse(@RequestBody final Mono<ChatBotRequest> chatBotRequest) {
         return chatBotService.getResponse(chatBotRequest);
     }
 }

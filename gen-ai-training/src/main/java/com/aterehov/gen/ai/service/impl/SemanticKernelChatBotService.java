@@ -52,17 +52,6 @@ public class SemanticKernelChatBotService implements ChatBotService {
                 });
     }
 
-    @Override
-    public String getResponse(ChatBotRequest chatBotRequest) {
-        ChatHistory history = new ChatHistory();
-        history.addUserMessage("Generate a funny joke about animals");
-        List<ChatMessageContent<?>> results = chatCompletionService
-                .getChatMessageContentsAsync(history, kernel, invocationContext)
-                .block();
-
-        return results.getFirst().getContent();
-    }
-
     private Mono<List<ChatMessageContent<?>>> generateResponseFromAI(String input) {
         chatHistory.addUserMessage(input);
         return chatCompletionService
