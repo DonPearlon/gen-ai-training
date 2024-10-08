@@ -11,7 +11,10 @@ import com.microsoft.semantickernel.services.chatcompletion.ChatHistory;
 import com.microsoft.semantickernel.services.chatcompletion.ChatMessageContent;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -22,10 +25,12 @@ import java.util.function.Function;
 @RequiredArgsConstructor
 public class SemanticKernelChatBotService implements ChatBotService {
 
-    public static final String FORMATTING = ". Response should be in the following format (JSON), no other symbols allowed:" +
-            " {\n" +
-            "    \"response\": {Generated Response}\n" +
-            "}\n";
+    public static final String FORMATTING = """
+            . Response should be in the following format (JSON), no other symbols allowed:\
+             {
+                "response": {Generated Response}
+            }
+            """;
 
 
     private final Kernel kernel;
@@ -51,12 +56,25 @@ public class SemanticKernelChatBotService implements ChatBotService {
         return chatBotRequest
                 .flatMapMany(request -> generateResponseFromAI(request.input()))
                 .flatMapIterable(Function.identity())
-                .map(ChatMessageContent::getContent);
+                .map(ChatMessageContent::getContent)
+                .onErrorMap(this::handleException);
     }
 
     private Mono<List<ChatMessageContent<?>>> generateResponseFromAI(String input) {
         chatHistory.addUserMessage(input + FORMATTING);
         return chatCompletionService
                 .getChatMessageContentsAsync(chatHistory, kernel, invocationContext);
+    }
+
+    private ResponseStatusException handleException(Throwable exception) {
+        if (exception instanceof WebClientResponseException webClientEx) {
+            var status = webClientEx.getStatusCode();
+            if (status.is4xxClientError()) {
+                return new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bad request to downstream service", exception);
+            } else if (status.is5xxServerError()) {
+                return new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Error in downstream service", exception);
+            }
+        }
+        return new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error", exception);
     }
 }
