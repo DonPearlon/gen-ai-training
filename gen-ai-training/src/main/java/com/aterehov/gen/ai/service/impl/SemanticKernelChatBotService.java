@@ -1,6 +1,7 @@
 package com.aterehov.gen.ai.service.impl;
 
 import com.aterehov.gen.ai.dto.ChatBotRequest;
+import com.aterehov.gen.ai.dto.ChatBotResponse;
 import com.aterehov.gen.ai.service.ChatBotService;
 import com.microsoft.semantickernel.Kernel;
 import com.microsoft.semantickernel.orchestration.InvocationContext;
@@ -39,17 +40,14 @@ public class SemanticKernelChatBotService implements ChatBotService {
     }
 
     @Override
-    public Mono<String> getResponse(Mono<ChatBotRequest> chatBotRequest) {
+    public Mono<ChatBotResponse> getResponse(Mono<ChatBotRequest> chatBotRequest) {
 
         return chatBotRequest
                 .flatMap(request -> generateResponseFromAI(request.input()))
-                .flatMap(contentList -> {
-                    if (contentList.isEmpty()) {
-                        return Mono.empty();
-                    }
-                    ChatMessageContent<?> firstContent = contentList.getFirst();
-                    return firstContent.getContent() != null ? Mono.just(firstContent.getContent()) : Mono.empty();
-                });
+                .map(contentList -> contentList.stream()
+                        .map(ChatMessageContent::getContent)
+                        .toList())
+                .map(ChatBotResponse::new);
     }
 
     private Mono<List<ChatMessageContent<?>>> generateResponseFromAI(String input) {

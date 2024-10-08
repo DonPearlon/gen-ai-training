@@ -1,6 +1,7 @@
 package com.aterehov.gen.ai.controller;
 
 import com.aterehov.gen.ai.dto.ChatBotRequest;
+import com.aterehov.gen.ai.dto.ChatBotResponse;
 import com.aterehov.gen.ai.service.ChatBotService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,7 +16,7 @@ public class ChatBotController {
     private final ChatBotService chatBotService;
 
     @PostMapping("/chat")
-    public Mono<String> getResponse(@RequestBody final Mono<ChatBotRequest> chatBotRequest) {
+    public Mono<ChatBotResponse> getResponse(@RequestBody final Mono<ChatBotRequest> chatBotRequest) {
         return chatBotService.getResponse(chatBotRequest);
     }
 }
