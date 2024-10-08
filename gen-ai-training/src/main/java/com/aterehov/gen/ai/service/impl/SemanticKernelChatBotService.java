@@ -1,7 +1,6 @@
 package com.aterehov.gen.ai.service.impl;
 
 import com.aterehov.gen.ai.dto.ChatBotRequest;
-import com.aterehov.gen.ai.dto.ChatBotResponse;
 import com.aterehov.gen.ai.service.ChatBotService;
 import com.microsoft.semantickernel.Kernel;
 import com.microsoft.semantickernel.orchestration.InvocationContext;
@@ -12,15 +11,22 @@ import com.microsoft.semantickernel.services.chatcompletion.ChatHistory;
 import com.microsoft.semantickernel.services.chatcompletion.ChatMessageContent;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
 public class SemanticKernelChatBotService implements ChatBotService {
+
+    public static final String FORMATTING = ". Response should be in the following format (JSON), no other symbols allowed:" +
+            " {\n" +
+            "    \"response\": {Generated Response}\n" +
+            "}\n";
+
 
     private final Kernel kernel;
 
@@ -40,18 +46,16 @@ public class SemanticKernelChatBotService implements ChatBotService {
     }
 
     @Override
-    public Mono<ChatBotResponse> getResponse(Mono<ChatBotRequest> chatBotRequest) {
+    public Flux<String> getResponse(Mono<ChatBotRequest> chatBotRequest) {
 
         return chatBotRequest
-                .flatMap(request -> generateResponseFromAI(request.input()))
-                .map(contentList -> contentList.stream()
-                        .map(ChatMessageContent::getContent)
-                        .toList())
-                .map(ChatBotResponse::new);
+                .flatMapMany(request -> generateResponseFromAI(request.input()))
+                .flatMapIterable(Function.identity())
+                .map(ChatMessageContent::getContent);
     }
 
     private Mono<List<ChatMessageContent<?>>> generateResponseFromAI(String input) {
-        chatHistory.addUserMessage(input);
+        chatHistory.addUserMessage(input + FORMATTING);
         return chatCompletionService
                 .getChatMessageContentsAsync(chatHistory, kernel, invocationContext);
     }
