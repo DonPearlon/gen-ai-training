@@ -60,15 +60,13 @@ public class JSONFormatPlugin {
         List<String> paragraphs = TextChunker.splitPlainTextParagraphs(lines, MAX_TOKENS);
 
         return Flux.fromIterable(paragraphs)
-                .concatMap(paragraph -> {
-                    return func.invokeAsync(kernel)
-                            .withArguments(
-                                    new KernelFunctionArguments.Builder()
-                                            .withInput(paragraph)
-                                            .build())
-                            .withResultType(
-                                    ContextVariableTypes.getGlobalVariableTypeForClass(String.class));
-                })
+                .concatMap(paragraph -> func.invokeAsync(kernel)
+                        .withArguments(
+                                new KernelFunctionArguments.Builder()
+                                        .withInput(paragraph)
+                                        .build())
+                        .withResultType(
+                                ContextVariableTypes.getGlobalVariableTypeForClass(String.class)))
                 .reduce("", (acc, next) ->
                         acc + "\n" + next.getResult()
                 );
