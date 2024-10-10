@@ -1,7 +1,7 @@
 package com.aterehov.gen.ai.config;
 
 
-import com.aterehov.gen.ai.plugin.JSONFormatPlugin;
+import com.aterehov.gen.ai.plugin.ChatBotResponseFormatPlugin;
 import com.azure.ai.openai.OpenAIAsyncClient;
 import com.azure.ai.openai.OpenAIClientBuilder;
 import com.azure.core.credential.AzureKeyCredential;
@@ -43,16 +43,16 @@ public class ChatBotConfig {
     }
 
     @Bean
-    public KernelPlugin jsonFormatPlugin() {
-        return KernelPluginFactory.createFromObject(new JSONFormatPlugin(),
-                "JSONFormatPlugin");
+    public KernelPlugin chatBotResponseFormatPlugin() {
+        return KernelPluginFactory.createFromObject(new ChatBotResponseFormatPlugin(),
+                "ChatBotResponseFormatPlugin");
     }
 
     @Bean
-    public Kernel kernel(ChatCompletionService chatCompletionService, KernelPlugin jsonFormatPlugin) {
+    public Kernel kernel(ChatCompletionService chatCompletionService, KernelPlugin chatBotResponseFormatPlugin) {
         return Kernel.builder()
                 .withAIService(ChatCompletionService.class, chatCompletionService)
-                .withPlugin(jsonFormatPlugin)
+                .withPlugin(chatBotResponseFormatPlugin)
                 .build();
     }
 }

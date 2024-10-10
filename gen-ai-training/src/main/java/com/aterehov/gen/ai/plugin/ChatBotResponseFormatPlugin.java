@@ -1,5 +1,6 @@
 package com.aterehov.gen.ai.plugin;
 
+import com.aterehov.gen.ai.dto.ChatBotResponse;
 import com.microsoft.semantickernel.Kernel;
 import com.microsoft.semantickernel.contextvariables.ContextVariableTypes;
 import com.microsoft.semantickernel.orchestration.PromptExecutionSettings;
@@ -13,11 +14,11 @@ import reactor.core.publisher.Mono;
 
 import java.util.List;
 
-public class JSONFormatPlugin {
+public class ChatBotResponseFormatPlugin {
 
     private static final int MAX_TOKENS = 1024;
 
-    private static final double TEMPERATURE = 0.3;
+    private static final double TEMPERATURE = 0.7;
 
     private static final double TOP_P = 0.5;
 
@@ -30,7 +31,9 @@ public class JSONFormatPlugin {
 
     private final KernelFunction<String> jsonFormatFunction;
 
-    public JSONFormatPlugin() {
+    private final KernelFunction<ChatBotResponse> responseObjectFunction;
+
+    public ChatBotResponseFormatPlugin() {
         var settings = PromptExecutionSettings.builder()
                 .withMaxTokens(MAX_TOKENS)
                 .withTemperature(TEMPERATURE)
@@ -44,6 +47,14 @@ public class JSONFormatPlugin {
                 .withDescription(
                         "Return response in JSON format")
                 .build();
+
+        this.responseObjectFunction = KernelFunction
+                .<ChatBotResponse>createFromPrompt("{{$INPUT}}")
+                .withDefaultExecutionSettings(settings)
+                .withName("responseObject")
+                .withDescription(
+                        "Return response as an object")
+                .build();
     }
 
     @DefineKernelFunction(description = "Any input given, return response in JSON format.",
@@ -51,11 +62,19 @@ public class JSONFormatPlugin {
     public Mono<String> jsonFormat(
             @KernelFunctionParameter(description = "Any input.", name = "input") String input,
             Kernel kernel) {
-        return processAsync(this.jsonFormatFunction, input, kernel);
+        return processAsyncJson(this.jsonFormatFunction, input, kernel);
     }
 
-    private static Mono<String> processAsync(KernelFunction<String> func, String input,
-                                             Kernel kernel) {
+    @DefineKernelFunction(description = "Return result in form of chat bot response object",
+            name = "responseObject", returnType = "com.aterehov.gen.ai.dto.ChatBotResponse")
+    public Mono<ChatBotResponse> responseObject(
+            @KernelFunctionParameter(description = "Any input.", name = "input") String input,
+            Kernel kernel) {
+        return processAsyncResponseObject(this.responseObjectFunction, input, kernel);
+    }
+
+    private static Mono<String> processAsyncJson(KernelFunction<String> func, String input,
+                                                 Kernel kernel) {
         List<String> lines = TextChunker.splitPlainTextLines(input, MAX_TOKENS);
         List<String> paragraphs = TextChunker.splitPlainTextParagraphs(lines, MAX_TOKENS);
 
@@ -72,5 +91,21 @@ public class JSONFormatPlugin {
                 );
     }
 
+    private static Mono<ChatBotResponse> processAsyncResponseObject(KernelFunction<ChatBotResponse> func, String input,
+                                             Kernel kernel) {
+        List<String> lines = TextChunker.splitPlainTextLines(input, MAX_TOKENS);
+        List<String> paragraphs = TextChunker.splitPlainTextParagraphs(lines, MAX_TOKENS);
 
+        return Flux.fromIterable(paragraphs)
+                .concatMap(paragraph -> func.invokeAsync(kernel)
+                        .withArguments(
+                                new KernelFunctionArguments.Builder()
+                                        .withInput(paragraph)
+                                        .build())
+                        .withResultType(
+                                ContextVariableTypes.getGlobalVariableTypeForClass(String.class)))
+                .reduce("", (acc, next) ->
+                        acc + "\n" + next.getResult()
+                ).map(ChatBotResponse::new);
+    }
 }
