@@ -1,11 +1,11 @@
-package com.aterehov.gen.ai.service.impl;
+package com.aterehov.gen.ai.service.semantickernel;
 
 import com.aterehov.gen.ai.dto.ChatBotRequest;
 import com.aterehov.gen.ai.service.ChatBotService;
 import com.microsoft.semantickernel.Kernel;
-import com.microsoft.semantickernel.orchestration.InvocationContext;
-import com.microsoft.semantickernel.orchestration.InvocationReturnMode;
-import com.microsoft.semantickernel.orchestration.ToolCallBehavior;
+import com.microsoft.semantickernel.orchestration.*;
+import com.microsoft.semantickernel.semanticfunctions.KernelFunction;
+import com.microsoft.semantickernel.semanticfunctions.KernelFunctionFromPrompt;
 import com.microsoft.semantickernel.services.chatcompletion.ChatCompletionService;
 import com.microsoft.semantickernel.services.chatcompletion.ChatHistory;
 import com.microsoft.semantickernel.services.chatcompletion.ChatMessageContent;
@@ -25,12 +25,16 @@ import java.util.function.Function;
 @RequiredArgsConstructor
 public class SemanticKernelChatBotService implements ChatBotService {
 
-    public static final String FORMATTING = """
-            . Response should be in the following format (JSON), no other symbols allowed:\
+    public static final String JSON_FORMAT_PROMPT = """
+            %s. Response should be in the following format (JSON), no other symbols allowed:\
              {
                 "response": {Generated Response}
             }
             """;
+
+    public static final String JSON_FORMAT_KERNEL_FUNCTION_PROMPT =
+            "Just return not formatted output (no modifications) of the following function!" +
+                    " {{JSONFormatPlugin.jsonFormat input=\"%s\"}}";
 
 
     private final Kernel kernel;
@@ -43,11 +47,11 @@ public class SemanticKernelChatBotService implements ChatBotService {
 
     @PostConstruct
     public void init() {
-        invocationContext = new InvocationContext.Builder()
+        this.invocationContext = new InvocationContext.Builder()
                 .withReturnMode(InvocationReturnMode.LAST_MESSAGE_ONLY)
                 .withToolCallBehavior(ToolCallBehavior.allowAllKernelFunctions(true))
                 .build();
-        chatHistory = new ChatHistory();
+        this.chatHistory = new ChatHistory();
     }
 
     @Override
@@ -61,9 +65,25 @@ public class SemanticKernelChatBotService implements ChatBotService {
     }
 
     private Mono<List<ChatMessageContent<?>>> generateResponseFromAI(String input) {
-        chatHistory.addUserMessage(input + FORMATTING);
+        chatHistory.addUserMessage(JSON_FORMAT_PROMPT.formatted(input));
         return chatCompletionService
                 .getChatMessageContentsAsync(chatHistory, kernel, invocationContext);
+    }
+
+    @Override
+    public Mono<String> getResponseKernelFunction(Mono<ChatBotRequest> chatBotRequest) {
+        return chatBotRequest
+                .flatMap(this::generateResponseFromAIKernelFunction)
+                .onErrorMap(this::handleException);
+    }
+
+    private Mono<String> generateResponseFromAIKernelFunction(ChatBotRequest chatBotRequest) {
+
+        KernelFunction<String> prompt = KernelFunctionFromPrompt
+                .<String>createFromPrompt(JSON_FORMAT_KERNEL_FUNCTION_PROMPT.formatted(chatBotRequest.input()))
+                .build();
+        FunctionInvocation<String> functionInvocation = prompt.invokeAsync(kernel);
+        return functionInvocation.map(FunctionResult::getResult);
     }
 
     private ResponseStatusException handleException(Throwable exception) {

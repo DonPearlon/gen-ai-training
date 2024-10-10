@@ -1,11 +1,14 @@
 package com.aterehov.gen.ai.config;
 
 
+import com.aterehov.gen.ai.plugin.JSONFormatPlugin;
 import com.azure.ai.openai.OpenAIAsyncClient;
 import com.azure.ai.openai.OpenAIClientBuilder;
 import com.azure.core.credential.AzureKeyCredential;
 import com.microsoft.semantickernel.Kernel;
 import com.microsoft.semantickernel.aiservices.openai.chatcompletion.OpenAIChatCompletion;
+import com.microsoft.semantickernel.plugin.KernelPlugin;
+import com.microsoft.semantickernel.plugin.KernelPluginFactory;
 import com.microsoft.semantickernel.services.chatcompletion.ChatCompletionService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -40,9 +43,16 @@ public class ChatBotConfig {
     }
 
     @Bean
-    public Kernel kernel(ChatCompletionService chatCompletionService) {
+    public KernelPlugin jsonFormatPlugin() {
+        return KernelPluginFactory.createFromObject(new JSONFormatPlugin(),
+                "JSONFormatPlugin");
+    }
+
+    @Bean
+    public Kernel kernel(ChatCompletionService chatCompletionService, KernelPlugin jsonFormatPlugin) {
         return Kernel.builder()
                 .withAIService(ChatCompletionService.class, chatCompletionService)
+                .withPlugin(jsonFormatPlugin)
                 .build();
     }
 }

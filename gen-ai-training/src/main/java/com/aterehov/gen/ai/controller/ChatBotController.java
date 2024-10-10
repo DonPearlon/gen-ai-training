@@ -16,8 +16,13 @@ public class ChatBotController {
 
     private final ChatBotService chatBotService;
 
-    @PostMapping(value = "/chat", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PostMapping(value = "/v1/chat", produces = MediaType.APPLICATION_JSON_VALUE)
     public Flux<String> getResponse(@RequestBody final Mono<ChatBotRequest> chatBotRequest) {
         return chatBotService.getResponse(chatBotRequest);
+    }
+
+    @PostMapping(value = "/v2/chat", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<String> getResponseV2(@RequestBody final Mono<ChatBotRequest> chatBotRequest) {
+        return chatBotService.getResponseKernelFunction(chatBotRequest);
     }
 }

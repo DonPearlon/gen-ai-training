@@ -5,5 +5,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 public interface ChatBotService {
+
     Flux<String> getResponse(Mono<ChatBotRequest> chatBotRequest);
+
+    Mono<String> getResponseKernelFunction(Mono<ChatBotRequest> chatBotRequest);
 }
