@@ -41,17 +41,14 @@ public class SemanticKernelChatBotService implements ChatBotService {
 
     private final ChatCompletionService chatCompletionService;
 
-    private InvocationContext invocationContext;
+    private final InvocationContext invocationContext;
 
     private ChatHistory chatHistory;
 
     @PostConstruct
     public void init() {
-        this.invocationContext = new InvocationContext.Builder()
-                .withReturnMode(InvocationReturnMode.LAST_MESSAGE_ONLY)
-                .withToolCallBehavior(ToolCallBehavior.allowAllKernelFunctions(true))
-                .build();
         this.chatHistory = new ChatHistory();
+        this.chatHistory.addSystemMessage("You are a helpful assistant.");
     }
 
     @Override
@@ -65,7 +62,7 @@ public class SemanticKernelChatBotService implements ChatBotService {
     }
 
     private Mono<List<ChatMessageContent<?>>> generateResponseFromAI(String input) {
-        chatHistory.addUserMessage(JSON_FORMAT_PROMPT.formatted(input));
+        this.chatHistory.addUserMessage(JSON_FORMAT_PROMPT.formatted(input));
         return chatCompletionService
                 .getChatMessageContentsAsync(chatHistory, kernel, invocationContext);
     }
