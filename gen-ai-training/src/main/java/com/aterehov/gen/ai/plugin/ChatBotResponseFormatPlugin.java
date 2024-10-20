@@ -12,7 +12,7 @@ public class ChatBotResponseFormatPlugin extends AbstractKernelPlugin {
     @DefineKernelFunction(description = "Return result in form of chat bot response object string",
             name = "responseObject", returnType = "java.lang.String")
     public Mono<String> responseObject(
-            @KernelFunctionParameter(description = "Any input.", name = "input") String input) {
+            @KernelFunctionParameter(description = "Only input to this particular function.", name = "input") String input) {
         return Mono.just(gson.toJson(new ChatBotResponse(input)));
     }
 }

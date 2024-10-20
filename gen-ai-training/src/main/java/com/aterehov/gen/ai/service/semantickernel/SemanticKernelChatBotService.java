@@ -2,6 +2,7 @@ package com.aterehov.gen.ai.service.semantickernel;
 
 import com.aterehov.gen.ai.dto.ChatBotRequest;
 import com.aterehov.gen.ai.dto.ChatBotResponse;
+import com.aterehov.gen.ai.dto.SystemMessageRequest;
 import com.aterehov.gen.ai.service.ChatBotService;
 import com.microsoft.semantickernel.Kernel;
 import com.microsoft.semantickernel.orchestration.*;
@@ -37,6 +38,8 @@ public class SemanticKernelChatBotService implements ChatBotService {
 
     public static final String KERNEL_FUNCTION_PROMPT = "Return exact response of this function without any modifications. {{%s input=\"%s\"}}";
 
+    public static final String DEFAULT_SYSTEM_MESSAGE = "You are a helpful assistant.";
+
     private final Kernel kernel;
 
     private final ChatCompletionService chatCompletionService;
@@ -49,8 +52,18 @@ public class SemanticKernelChatBotService implements ChatBotService {
 
     @PostConstruct
     public void init() {
+        initNewChatHistory();
+    }
+
+    @Override
+    public void initNewChatHistory() {
         this.chatHistory = new ChatHistory();
-        this.chatHistory.addSystemMessage("You are a helpful assistant.");
+        this.chatHistory.addSystemMessage(DEFAULT_SYSTEM_MESSAGE);
+    }
+
+    @Override
+    public void addSystemMessage(SystemMessageRequest systemMessageRequest) {
+        this.chatHistory.addSystemMessage(systemMessageRequest.message());
     }
 
     @Override
@@ -70,37 +83,17 @@ public class SemanticKernelChatBotService implements ChatBotService {
     }
 
     @Override
-    public Mono<String> getResponseKernelFunctionJson(Mono<ChatBotRequest> chatBotRequest) {
-        return chatBotRequest
-                .flatMap(this::generateResponseFromAIKernelFunctionJson)
-                .onErrorMap(this::handleException);
-    }
-
-    @Override
-    public Mono<ChatBotResponse> getResponseKernelFunction(Mono<ChatBotRequest> chatBotRequest) {
-        return chatBotRequest
-                .flatMap(this::generateResponseFromAIKernelFunction)
-                .onErrorMap(this::handleException);
-    }
-
-    @Override
     public Mono<String> getConversationSummary() {
-        KernelFunction<String> summarizeConversation = this.kernel.getFunction("ConversationSummaryPlugin", "summarizeConversation");
+        KernelFunction<String> summarizeConversation = this.kernel
+                .getFunction("ConversationSummaryPlugin",
+                        "summarizeConversation");
         var arguments = KernelFunctionArguments.builder()
                 .withVariable("input", this.chatHistory)
                  .build();
         return kernel.invokeAsync(summarizeConversation)
                 .withArguments(arguments)
-                /*.withToolCallBehavior(
-                        ToolCallBehavior.allowOnlyKernelFunctions(true,
-                                conversationSummaryPlugin.get("summarizeConversation")))*/
                 .map(FunctionResult::getResult)
                 .flatMap(this::formatResponseKernelFunction);
-        /*KernelFunction<String> prompt = KernelFunctionFromPrompt
-                .<String>createFromPrompt("{{ConversationSummaryPlugin.summarizeConversation $input}}")
-                .build();
-        FunctionInvocation<String> functionInvocation = prompt.invokeAsync(kernel);
-        return functionInvocation.map(FunctionResult::getResult);*/
 
     }
 
@@ -110,25 +103,6 @@ public class SemanticKernelChatBotService implements ChatBotService {
                         .formatted("ChatBotResponseFormatPlugin.responseObject", input))
                 .build();
         FunctionInvocation<String> functionInvocation = prompt.invokeAsync(kernel);
-        return functionInvocation.map(FunctionResult::getResult);
-    }
-
-    private Mono<String> generateResponseFromAIKernelFunctionJson(ChatBotRequest chatBotRequest) {
-
-        KernelFunction<String> prompt = KernelFunctionFromPrompt
-                .<String>createFromPrompt(KERNEL_FUNCTION_PROMPT
-                        .formatted("ChatBotResponseFormatPlugin.jsonFormat", chatBotRequest.input()))
-                .build();
-        FunctionInvocation<String> functionInvocation = prompt.invokeAsync(kernel);
-        return functionInvocation.map(FunctionResult::getResult);
-    }
-
-    private Mono<ChatBotResponse> generateResponseFromAIKernelFunction(ChatBotRequest chatBotRequest) {
-        KernelFunction<ChatBotResponse> prompt = KernelFunctionFromPrompt
-                .<ChatBotResponse>createFromPrompt(KERNEL_FUNCTION_PROMPT
-                        .formatted("ChatBotResponseFormatPlugin.responseObject", chatBotRequest.input()))
-                .build();
-        FunctionInvocation<ChatBotResponse> functionInvocation = prompt.invokeAsync(kernel);
         return functionInvocation.map(FunctionResult::getResult);
     }
 
