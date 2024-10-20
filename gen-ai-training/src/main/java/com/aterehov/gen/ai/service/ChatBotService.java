@@ -12,4 +12,6 @@ public interface ChatBotService {
     Mono<String> getResponseKernelFunctionJson(Mono<ChatBotRequest> chatBotRequest);
 
     Mono<ChatBotResponse> getResponseKernelFunction(Mono<ChatBotRequest> chatBotRequest);
+
+    Mono<String> getConversationSummary();
 }

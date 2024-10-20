@@ -5,6 +5,7 @@ import com.aterehov.gen.ai.dto.ChatBotResponse;
 import com.aterehov.gen.ai.service.ChatBotService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,5 +31,10 @@ public class ChatBotController {
     @PostMapping(value = "/v3/chat", produces = MediaType.APPLICATION_JSON_VALUE)
     public Mono<ChatBotResponse> getResponseV3(@RequestBody final Mono<ChatBotRequest> chatBotRequest) {
         return chatBotService.getResponseKernelFunction(chatBotRequest);
+    }
+
+    @GetMapping(value = "/summary", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<String> getSummary() {
+        return chatBotService.getConversationSummary();
     }
 }
