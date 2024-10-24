@@ -19,22 +19,34 @@ public class ChatBotController {
 
     private final ChatBotService chatBotService;
 
+    /**
+     * Chat with AI model with usage of ChatCompletionService and ChatHistory
+     */
     @PostMapping(value = "/chat", produces = MediaType.APPLICATION_JSON_VALUE)
     public Flux<String> getResponse(@RequestBody final Mono<ChatBotRequest> chatBotRequest) {
         return chatBotService.getResponse(chatBotRequest);
     }
 
+    /**
+     * Summary of the conversation based on ChatHistory with usage of KernelFunction
+     */
     @GetMapping(value = "/summary", produces = MediaType.APPLICATION_JSON_VALUE)
     public Mono<String> getSummary() {
         return chatBotService.getConversationSummary();
     }
 
+    /**
+     * Clear ChatHistory
+     */
     @PostMapping(value = "/chat/clear-history", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getClearChatHistory(@RequestBody final Mono<ChatBotRequest> chatBotRequest) {
         chatBotService.initNewChatHistory();
         return ResponseEntity.ok().build();
     }
 
+    /**
+     * Add system message to ChatHistory
+     */
     @PostMapping(value = "/chat/system-message", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> setSystemMessage(@RequestBody final SystemMessageRequest systemMessageRequest) {
         chatBotService.addSystemMessage(systemMessageRequest);
