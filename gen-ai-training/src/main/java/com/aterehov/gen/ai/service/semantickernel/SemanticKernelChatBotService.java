@@ -3,6 +3,7 @@ package com.aterehov.gen.ai.service.semantickernel;
 import com.aterehov.gen.ai.dto.ChatBotRequest;
 import com.aterehov.gen.ai.dto.ChatBotResponse;
 import com.aterehov.gen.ai.dto.SystemMessageRequest;
+import com.aterehov.gen.ai.exception.NotFoundException;
 import com.aterehov.gen.ai.service.ChatBotService;
 import com.microsoft.semantickernel.Kernel;
 import com.microsoft.semantickernel.orchestration.*;
@@ -23,30 +24,20 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
 public class SemanticKernelChatBotService implements ChatBotService {
 
-    public static final String JSON_FORMAT_PROMPT = """
-            %s. Response should be in the following format (JSON), no other symbols allowed:\
-             {
-                "response": {Generated Response}
-            }
-            """;
-
-    public static final String KERNEL_FUNCTION_PROMPT = "Return exact response of this function without any modifications. {{%s input=\"%s\"}}";
-
     public static final String DEFAULT_SYSTEM_MESSAGE = "You are a helpful assistant.";
 
-    private final Kernel kernel;
+    private final Map<String, ChatCompletionService> modelToChatCompletionService;
 
-    private final ChatCompletionService chatCompletionService;
+    private final Map<String, Kernel> modelToKernel;
 
-    private final InvocationContext invocationContext;
-
-    private final KernelPlugin conversationSummaryPlugin;
+    private final Map<String, InvocationContext> invocationContextMap;
 
     private ChatHistory chatHistory;
 
@@ -67,43 +58,47 @@ public class SemanticKernelChatBotService implements ChatBotService {
     }
 
     @Override
-    public Flux<String> getResponse(Mono<ChatBotRequest> chatBotRequest) {
-
+    public Flux<ChatBotResponse> getResponse(Mono<ChatBotRequest> chatBotRequest, String model, String context) {
         return chatBotRequest
-                .flatMapMany(request -> generateResponseFromAI(request.input()))
+                .flatMapMany(request -> generateResponseFromAI(request.input(), model, context))
                 .flatMapIterable(Function.identity())
                 .map(ChatMessageContent::getContent)
+                .map(ChatBotResponse::new)
                 .onErrorMap(this::handleException);
     }
 
-    private Mono<List<ChatMessageContent<?>>> generateResponseFromAI(String input) {
-        this.chatHistory.addUserMessage(JSON_FORMAT_PROMPT.formatted(input));
+    private Mono<List<ChatMessageContent<?>>> generateResponseFromAI(String input, String modelName, String context) {
+        ChatCompletionService chatCompletionService = modelToChatCompletionService.get(modelName);
+        Kernel kernel = modelToKernel.get(modelName);
+        if (chatCompletionService == null || kernel == null) {
+            return Mono.error(new NotFoundException("%s model was not found".formatted(modelName)));
+        }
+        InvocationContext invocationContext = invocationContextMap.get(context);
+        if (modelName.contains("gpt")) {
+            this.chatHistory.addUserMessage(input);
+            return chatCompletionService
+                    .getChatMessageContentsAsync(chatHistory, kernel, invocationContext);
+        }
         return chatCompletionService
-                .getChatMessageContentsAsync(chatHistory, kernel, invocationContext);
+                .getChatMessageContentsAsync(input, kernel, invocationContext);
     }
 
     @Override
-    public Mono<String> getConversationSummary() {
-        KernelFunction<String> summarizeConversation = this.kernel
+    public Mono<ChatBotResponse> getConversationSummary() {
+        Kernel kernel = modelToKernel.get("gpt-4-turbo");
+        if (kernel == null) {
+            return Mono.error(new NotFoundException("%s model was not found".formatted("gpt-4-turbo")));
+        }
+        KernelFunction<String> summarizeConversation = kernel
                 .getFunction("ConversationSummaryPlugin",
                         "summarizeConversation");
         var arguments = KernelFunctionArguments.builder()
                 .withVariable("input", this.chatHistory)
-                 .build();
+                .build();
         return kernel.invokeAsync(summarizeConversation)
                 .withArguments(arguments)
                 .map(FunctionResult::getResult)
-                .flatMap(this::formatResponseKernelFunction);
-
-    }
-
-    private Mono<String> formatResponseKernelFunction(String input) {
-        KernelFunction<String> prompt = KernelFunctionFromPrompt
-                .<String>createFromPrompt(KERNEL_FUNCTION_PROMPT
-                        .formatted("ChatBotResponseFormatPlugin.responseObject", input))
-                .build();
-        FunctionInvocation<String> functionInvocation = prompt.invokeAsync(kernel);
-        return functionInvocation.map(FunctionResult::getResult);
+                .map(ChatBotResponse::new);
     }
 
     private ResponseStatusException handleException(Throwable exception) {
