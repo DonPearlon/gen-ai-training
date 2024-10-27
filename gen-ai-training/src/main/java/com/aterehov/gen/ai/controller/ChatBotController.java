@@ -22,8 +22,9 @@ public class ChatBotController {
      */
     @PostMapping(value = "/chat", produces = MediaType.APPLICATION_JSON_VALUE)
     public Flux<ChatBotResponse> getResponse(@RequestBody final Mono<ChatBotRequest> chatBotRequest,
-                                    @RequestParam(name = "model", required = true) String modelName) {
-        return chatBotService.getResponse(chatBotRequest, modelName);
+                                    @RequestParam(name = "model") String modelName,
+                                             @RequestParam(name = "context", required = false) String invocationContext) {
+        return chatBotService.getResponse(chatBotRequest, modelName, invocationContext);
     }
 
     /**

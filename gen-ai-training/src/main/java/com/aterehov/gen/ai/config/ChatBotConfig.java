@@ -89,13 +89,12 @@ public class ChatBotConfig {
     public Kernel createKernel(ChatCompletionService chatCompletionService) {
         return Kernel.builder()
                 .withAIService(ChatCompletionService.class, chatCompletionService)
-                //.withPlugin(chatBotResponseFormatPlugin())
-                .withPlugin(conversationSummaryPlugin(promptExecutionSettings()))
+                .withPlugin(conversationSummaryPlugin(defaultPromptExecutionSettings()))
                 .build();
     }
 
     @Bean
-    public PromptExecutionSettings promptExecutionSettings() {
+    public PromptExecutionSettings defaultPromptExecutionSettings() {
         return PromptExecutionSettings.builder()
                 .withTemperature(temperature)
                 .withMaxTokens(maxTokens)
@@ -103,12 +102,57 @@ public class ChatBotConfig {
                 .withFrequencyPenalty(frequencyPenalty)
                 .build();
     }
-    @Bean
-    public InvocationContext invocationContext(PromptExecutionSettings promptExecutionSettings) {
+
+    private Map<String, InvocationContext> invocationContextMap() {
+        Map<String, InvocationContext> invocationContextMap = new HashMap<>();
+        invocationContextMap.put(null, defaultInvocationContext());
+        invocationContextMap.put("default", defaultInvocationContext());
+        invocationContextMap.put("precise", preciseInvocationContext());
+        invocationContextMap.put("neutral", neutralInvocationContext());
+        invocationContextMap.put("creative", creativeInvocationContext());
+        return invocationContextMap;
+    }
+
+    public InvocationContext defaultInvocationContext() {
+        return createInvocationContext(defaultPromptExecutionSettings());
+    }
+
+    public InvocationContext preciseInvocationContext() {
+        var promptExecutionSettings = PromptExecutionSettings.builder()
+                .withTemperature(0.2)
+                .withMaxTokens(maxTokens)
+                .withTopP(0.5)
+                .withFrequencyPenalty(0.8)
+                .build();
+        return createInvocationContext(promptExecutionSettings);
+    }
+
+    public InvocationContext neutralInvocationContext() {
+        var promptExecutionSettings = PromptExecutionSettings.builder()
+                .withTemperature(0.5)
+                .withMaxTokens(maxTokens)
+                .withTopP(1.0)
+                .withFrequencyPenalty(0.5)
+                .build();
+        return createInvocationContext(promptExecutionSettings);
+    }
+
+    public InvocationContext creativeInvocationContext() {
+        var promptExecutionSettings = PromptExecutionSettings.builder()
+                .withTemperature(0.9)
+                .withMaxTokens(maxTokens)
+                .withTopP(1.0)
+                .withFrequencyPenalty(0.2)
+                .build();
+        return createInvocationContext(promptExecutionSettings);
+    }
+
+    private InvocationContext createInvocationContext(PromptExecutionSettings promptExecutionSettings) {
         return new InvocationContext.Builder()
                 .withPromptExecutionSettings(promptExecutionSettings)
                 .withReturnMode(InvocationReturnMode.LAST_MESSAGE_ONLY)
                 .withToolCallBehavior(ToolCallBehavior.allowAllKernelFunctions(true))
                 .build();
     }
+
 }

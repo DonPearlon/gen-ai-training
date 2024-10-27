@@ -8,7 +8,7 @@ import reactor.core.publisher.Mono;
 
 public interface ChatBotService {
 
-    Flux<ChatBotResponse> getResponse(Mono<ChatBotRequest> chatBotRequest, String model);
+    Flux<ChatBotResponse> getResponse(Mono<ChatBotRequest> chatBotRequest, String model, String context);
 
     Mono<ChatBotResponse> getConversationSummary();
 

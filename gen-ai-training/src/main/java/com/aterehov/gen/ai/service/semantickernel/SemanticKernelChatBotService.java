@@ -37,7 +37,7 @@ public class SemanticKernelChatBotService implements ChatBotService {
 
     private final Map<String, Kernel> modelToKernel;
 
-    private final InvocationContext invocationContext;
+    private final Map<String, InvocationContext> invocationContextMap;
 
     private ChatHistory chatHistory;
 
@@ -58,21 +58,22 @@ public class SemanticKernelChatBotService implements ChatBotService {
     }
 
     @Override
-    public Flux<ChatBotResponse> getResponse(Mono<ChatBotRequest> chatBotRequest, String model) {
+    public Flux<ChatBotResponse> getResponse(Mono<ChatBotRequest> chatBotRequest, String model, String context) {
         return chatBotRequest
-                .flatMapMany(request -> generateResponseFromAI(request.input(), model))
+                .flatMapMany(request -> generateResponseFromAI(request.input(), model, context))
                 .flatMapIterable(Function.identity())
                 .map(ChatMessageContent::getContent)
                 .map(ChatBotResponse::new)
                 .onErrorMap(this::handleException);
     }
 
-    private Mono<List<ChatMessageContent<?>>> generateResponseFromAI(String input, String modelName) {
+    private Mono<List<ChatMessageContent<?>>> generateResponseFromAI(String input, String modelName, String context) {
         ChatCompletionService chatCompletionService = modelToChatCompletionService.get(modelName);
         Kernel kernel = modelToKernel.get(modelName);
         if (chatCompletionService == null || kernel == null) {
             return Mono.error(new NotFoundException("%s model was not found".formatted(modelName)));
         }
+        InvocationContext invocationContext = invocationContextMap.get(context);
         if (modelName.contains("gpt")) {
             this.chatHistory.addUserMessage(input);
             return chatCompletionService
@@ -93,7 +94,7 @@ public class SemanticKernelChatBotService implements ChatBotService {
                         "summarizeConversation");
         var arguments = KernelFunctionArguments.builder()
                 .withVariable("input", this.chatHistory)
-                 .build();
+                .build();
         return kernel.invokeAsync(summarizeConversation)
                 .withArguments(arguments)
                 .map(FunctionResult::getResult)
