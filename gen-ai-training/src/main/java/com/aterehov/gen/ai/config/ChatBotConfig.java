@@ -2,6 +2,7 @@ package com.aterehov.gen.ai.config;
 
 
 import com.aterehov.gen.ai.plugin.ChatBotResponseFormatPlugin;
+import com.aterehov.gen.ai.plugin.ConversationSummaryPlugin;
 import com.azure.ai.openai.OpenAIAsyncClient;
 import com.azure.ai.openai.OpenAIClientBuilder;
 import com.azure.core.credential.AzureKeyCredential;
@@ -39,6 +40,9 @@ public class ChatBotConfig {
     @Value("${client-azureopenai-top-p:0.5}")
     private double topP;
 
+    @Value("${client-azureopenai-frequency-penalty:2}")
+    private double frequencyPenalty;
+
     @Bean
     public OpenAIAsyncClient openAIClient() {
         return new OpenAIClientBuilder()
@@ -62,10 +66,17 @@ public class ChatBotConfig {
     }
 
     @Bean
-    public Kernel kernel(ChatCompletionService chatCompletionService, KernelPlugin chatBotResponseFormatPlugin) {
+    public KernelPlugin conversationSummaryPlugin() {
+        return KernelPluginFactory.createFromObject(new ConversationSummaryPlugin(),
+                "ConversationSummaryPlugin");
+    }
+
+    @Bean
+    public Kernel kernel(ChatCompletionService chatCompletionService) {
         return Kernel.builder()
                 .withAIService(ChatCompletionService.class, chatCompletionService)
-                .withPlugin(chatBotResponseFormatPlugin)
+                .withPlugin(chatBotResponseFormatPlugin())
+                .withPlugin(conversationSummaryPlugin())
                 .build();
     }
 
@@ -75,6 +86,7 @@ public class ChatBotConfig {
                 .withTemperature(temperature)
                 .withMaxTokens(maxTokens)
                 .withTopP(topP)
+                .withFrequencyPenalty(frequencyPenalty)
                 .build();
         return new InvocationContext.Builder()
                 .withPromptExecutionSettings(executionSettings)
