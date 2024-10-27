@@ -1,7 +1,5 @@
 package com.aterehov.gen.ai.config;
 
-
-import com.aterehov.gen.ai.plugin.ChatBotResponseFormatPlugin;
 import com.aterehov.gen.ai.plugin.ConversationSummaryPlugin;
 import com.azure.ai.openai.OpenAIAsyncClient;
 import com.azure.ai.openai.OpenAIClientBuilder;
@@ -19,6 +17,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+
 @Configuration
 public class ChatBotConfig {
 
@@ -28,8 +30,8 @@ public class ChatBotConfig {
     @Value("${client-azureopenai-endpoint}")
     private String endpoint;
 
-    @Value("${client-azureopenai-deployment-name}")
-    private String deploymentName;
+    @Value("${client-azureopenai-deployment-names}")
+    private String deploymentNames;
 
     @Value("${client-azureopenai-temperature:0.5}")
     private double temperature;
@@ -52,7 +54,15 @@ public class ChatBotConfig {
     }
 
     @Bean
-    public ChatCompletionService chatCompletionService(OpenAIAsyncClient openAIClient) {
+    public Map<String, ChatCompletionService> modelToChatCompletionService(OpenAIAsyncClient openAIClient) {
+        Map<String, ChatCompletionService> modelToChatCompletionService = new HashMap<>();
+        Arrays.stream(deploymentNames.split(","))
+                .forEach(deploymentName ->
+                        modelToChatCompletionService.put(deploymentName, createChatCompletionService(openAIClient, deploymentName)));
+        return modelToChatCompletionService;
+    }
+
+    public ChatCompletionService createChatCompletionService(OpenAIAsyncClient openAIClient, String deploymentName) {
         return OpenAIChatCompletion.builder()
                 .withModelId(deploymentName)
                 .withOpenAIAsyncClient(openAIClient)
@@ -60,36 +70,43 @@ public class ChatBotConfig {
     }
 
     @Bean
-    public KernelPlugin chatBotResponseFormatPlugin() {
-        return KernelPluginFactory.createFromObject(new ChatBotResponseFormatPlugin(),
-                "ChatBotResponseFormatPlugin");
+    public Map<String, Kernel> modelToKernel(Map<String, ChatCompletionService> modelToChatCompletionService) {
+        Map<String, Kernel> modelToKernel = new HashMap<>();
+        Arrays.stream(deploymentNames.split(","))
+                .forEach(deploymentName ->
+                       modelToKernel.put(deploymentName, createKernel(modelToChatCompletionService.get(deploymentName))));
+        return modelToKernel;
     }
 
     @Bean
-    public KernelPlugin conversationSummaryPlugin() {
-        return KernelPluginFactory.createFromObject(new ConversationSummaryPlugin(),
+    public KernelPlugin conversationSummaryPlugin(PromptExecutionSettings promptExecutionSettings) {
+        return KernelPluginFactory.createFromObject(new ConversationSummaryPlugin(promptExecutionSettings),
                 "ConversationSummaryPlugin");
     }
 
-    @Bean
-    public Kernel kernel(ChatCompletionService chatCompletionService) {
+
+
+    public Kernel createKernel(ChatCompletionService chatCompletionService) {
         return Kernel.builder()
                 .withAIService(ChatCompletionService.class, chatCompletionService)
-                .withPlugin(chatBotResponseFormatPlugin())
-                .withPlugin(conversationSummaryPlugin())
+                //.withPlugin(chatBotResponseFormatPlugin())
+                .withPlugin(conversationSummaryPlugin(promptExecutionSettings()))
                 .build();
     }
 
     @Bean
-    public InvocationContext invocationContext() {
-        var executionSettings = PromptExecutionSettings.builder()
+    public PromptExecutionSettings promptExecutionSettings() {
+        return PromptExecutionSettings.builder()
                 .withTemperature(temperature)
                 .withMaxTokens(maxTokens)
                 .withTopP(topP)
                 .withFrequencyPenalty(frequencyPenalty)
                 .build();
+    }
+    @Bean
+    public InvocationContext invocationContext(PromptExecutionSettings promptExecutionSettings) {
         return new InvocationContext.Builder()
-                .withPromptExecutionSettings(executionSettings)
+                .withPromptExecutionSettings(promptExecutionSettings)
                 .withReturnMode(InvocationReturnMode.LAST_MESSAGE_ONLY)
                 .withToolCallBehavior(ToolCallBehavior.allowAllKernelFunctions(true))
                 .build();
