@@ -6,7 +6,6 @@ import com.aterehov.gen.ai.dto.SystemMessageRequest;
 import com.aterehov.gen.ai.service.ChatBotService;
 import com.microsoft.semantickernel.Kernel;
 import com.microsoft.semantickernel.orchestration.*;
-import com.microsoft.semantickernel.plugin.KernelPlugin;
 import com.microsoft.semantickernel.services.chatcompletion.ChatCompletionService;
 import com.microsoft.semantickernel.services.chatcompletion.ChatHistory;
 import com.microsoft.semantickernel.services.chatcompletion.ChatMessageContent;
@@ -33,8 +32,6 @@ public class SemanticKernelChatBotService implements ChatBotService {
     private final ChatCompletionService chatCompletionService;
 
     private final InvocationContext invocationContext;
-
-    private final KernelPlugin conversationSummaryPlugin;
 
     private ChatHistory chatHistory;
 
