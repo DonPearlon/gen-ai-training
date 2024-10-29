@@ -1,8 +1,5 @@
 package com.aterehov.gen.ai.config;
 
-
-import com.aterehov.gen.ai.plugin.ChatBotResponseFormatPlugin;
-import com.aterehov.gen.ai.plugin.ConversationSummaryPlugin;
 import com.azure.ai.openai.OpenAIAsyncClient;
 import com.azure.ai.openai.OpenAIClientBuilder;
 import com.azure.core.credential.AzureKeyCredential;
@@ -12,8 +9,6 @@ import com.microsoft.semantickernel.orchestration.InvocationContext;
 import com.microsoft.semantickernel.orchestration.InvocationReturnMode;
 import com.microsoft.semantickernel.orchestration.PromptExecutionSettings;
 import com.microsoft.semantickernel.orchestration.ToolCallBehavior;
-import com.microsoft.semantickernel.plugin.KernelPlugin;
-import com.microsoft.semantickernel.plugin.KernelPluginFactory;
 import com.microsoft.semantickernel.services.chatcompletion.ChatCompletionService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -60,23 +55,9 @@ public class ChatBotConfig {
     }
 
     @Bean
-    public KernelPlugin chatBotResponseFormatPlugin() {
-        return KernelPluginFactory.createFromObject(new ChatBotResponseFormatPlugin(),
-                "ChatBotResponseFormatPlugin");
-    }
-
-    @Bean
-    public KernelPlugin conversationSummaryPlugin() {
-        return KernelPluginFactory.createFromObject(new ConversationSummaryPlugin(),
-                "ConversationSummaryPlugin");
-    }
-
-    @Bean
     public Kernel kernel(ChatCompletionService chatCompletionService) {
         return Kernel.builder()
                 .withAIService(ChatCompletionService.class, chatCompletionService)
-                .withPlugin(chatBotResponseFormatPlugin())
-                .withPlugin(conversationSummaryPlugin())
                 .build();
     }
 
