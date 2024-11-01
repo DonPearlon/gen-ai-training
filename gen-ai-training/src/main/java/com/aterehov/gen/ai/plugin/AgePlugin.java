@@ -20,7 +20,7 @@ public class AgePlugin {
             returnDescription = "Returns age calculated from birth date string",
             returnType = "java.lang.String")
     public Mono<String> calculateAge(
-            @KernelFunctionParameter(name = "birthDate")
+            @KernelFunctionParameter(name = "birthDateStr")
             String birthDateStr
 
     ) {
