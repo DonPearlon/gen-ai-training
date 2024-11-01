@@ -1,5 +1,6 @@
 package com.aterehov.gen.ai.config;
 
+import com.aterehov.gen.ai.plugin.AgePlugin;
 import com.azure.ai.openai.OpenAIAsyncClient;
 import com.azure.ai.openai.OpenAIClientBuilder;
 import com.azure.core.credential.AzureKeyCredential;
@@ -9,6 +10,8 @@ import com.microsoft.semantickernel.orchestration.InvocationContext;
 import com.microsoft.semantickernel.orchestration.InvocationReturnMode;
 import com.microsoft.semantickernel.orchestration.PromptExecutionSettings;
 import com.microsoft.semantickernel.orchestration.ToolCallBehavior;
+import com.microsoft.semantickernel.plugin.KernelPlugin;
+import com.microsoft.semantickernel.plugin.KernelPluginFactory;
 import com.microsoft.semantickernel.services.chatcompletion.ChatCompletionService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -32,7 +35,7 @@ public class ChatBotConfig {
     @Value("${client-azureopenai-max-tokens:1024}")
     private int maxTokens;
 
-    @Value("${client-azureopenai-top-p:0.5}")
+    @Value("${client-azureopenai-top-p:1}")
     private double topP;
 
     @Value("${client-azureopenai-frequency-penalty:2}")
@@ -55,9 +58,16 @@ public class ChatBotConfig {
     }
 
     @Bean
+    public KernelPlugin agePlugin() {
+        return KernelPluginFactory.createFromObject(new AgePlugin(),
+                "AgePlugin");
+    }
+
+    @Bean
     public Kernel kernel(ChatCompletionService chatCompletionService) {
         return Kernel.builder()
                 .withAIService(ChatCompletionService.class, chatCompletionService)
+                .withPlugin(agePlugin())
                 .build();
     }
 
