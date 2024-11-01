@@ -2,6 +2,7 @@ package com.aterehov.gen.ai.config;
 
 import com.aterehov.gen.ai.domain.Currency;
 import com.aterehov.gen.ai.plugin.AgePlugin;
+import com.aterehov.gen.ai.plugin.ConversationSummaryPlugin;
 import com.aterehov.gen.ai.plugin.CurrencyConverterPlugin;
 import com.aterehov.gen.ai.service.semantickernel.CurrencyConverterServiceImpl;
 import com.azure.ai.openai.OpenAIAsyncClient;
@@ -75,6 +76,12 @@ public class ChatBotConfig {
     }
 
     @Bean
+    public KernelPlugin conversationSummaryPlugin() {
+        return KernelPluginFactory.createFromObject(new ConversationSummaryPlugin(executionSettings()),
+                "ConversationSummaryPlugin");
+    }
+
+    @Bean
     public Kernel kernel(ChatCompletionService chatCompletionService) {
 
         var currencyConverter = new ContextVariableTypeConverter<>(Currency.class,
@@ -87,17 +94,22 @@ public class ChatBotConfig {
                 .withAIService(ChatCompletionService.class, chatCompletionService)
                 .withPlugin(agePlugin())
                 .withPlugin(currencyConverterPlugin())
+                .withPlugin(conversationSummaryPlugin())
                 .build();
     }
 
     @Bean
-    public InvocationContext invocationContext() {
-        var executionSettings = PromptExecutionSettings.builder()
+    public PromptExecutionSettings executionSettings() {
+        return PromptExecutionSettings.builder()
                 .withTemperature(temperature)
                 .withMaxTokens(maxTokens)
                 .withTopP(topP)
                 .withFrequencyPenalty(frequencyPenalty)
                 .build();
+    }
+
+    @Bean
+    public InvocationContext invocationContext(PromptExecutionSettings executionSettings) {
         return new InvocationContext.Builder()
                 .withPromptExecutionSettings(executionSettings)
                 .withReturnMode(InvocationReturnMode.LAST_MESSAGE_ONLY)

@@ -7,6 +7,7 @@ import com.aterehov.gen.ai.service.ChatBotService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -25,6 +26,14 @@ public class ChatBotController {
     @PostMapping(value = "/chat", produces = MediaType.APPLICATION_JSON_VALUE)
     public Flux<ChatBotResponse> getResponse(@RequestBody final Mono<ChatBotRequest> chatBotRequest) {
         return chatBotService.getResponse(chatBotRequest);
+    }
+
+    /**
+     * Summary of the conversation based on ChatHistory with usage of KernelFunction
+     */
+    @GetMapping(value = "/summary", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<ChatBotResponse> getSummary() {
+        return chatBotService.getConversationSummary();
     }
 
     /**

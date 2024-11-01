@@ -6,6 +6,8 @@ import com.aterehov.gen.ai.dto.SystemMessageRequest;
 import com.aterehov.gen.ai.service.ChatBotService;
 import com.microsoft.semantickernel.Kernel;
 import com.microsoft.semantickernel.orchestration.*;
+import com.microsoft.semantickernel.semanticfunctions.KernelFunction;
+import com.microsoft.semantickernel.semanticfunctions.KernelFunctionArguments;
 import com.microsoft.semantickernel.services.chatcompletion.ChatCompletionService;
 import com.microsoft.semantickernel.services.chatcompletion.ChatHistory;
 import com.microsoft.semantickernel.services.chatcompletion.ChatMessageContent;
@@ -61,6 +63,21 @@ public class SemanticKernelChatBotService implements ChatBotService {
                 .map(ChatBotResponse::new)
                 .onErrorMap(this::handleException);
     }
+
+    @Override
+    public Mono<ChatBotResponse> getConversationSummary() {
+        KernelFunction<String> summarizeConversation = kernel
+                .getFunction("ConversationSummaryPlugin",
+                        "summarizeConversation");
+        var arguments = KernelFunctionArguments.builder()
+                .withVariable("input", this.chatHistory)
+                .build();
+        return kernel.invokeAsync(summarizeConversation)
+                .withArguments(arguments)
+                .map(FunctionResult::getResult)
+                .map(ChatBotResponse::new);
+    }
+
 
     private Mono<List<ChatMessageContent<?>>> generateResponseFromAI(String input) {
         this.chatHistory.addUserMessage(input);

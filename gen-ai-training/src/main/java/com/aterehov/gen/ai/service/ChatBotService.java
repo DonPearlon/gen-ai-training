@@ -13,4 +13,6 @@ public interface ChatBotService {
     void initNewChatHistory();
 
     void addSystemMessage(SystemMessageRequest systemMessageRequest);
+
+    Mono<ChatBotResponse> getConversationSummary();
 }
