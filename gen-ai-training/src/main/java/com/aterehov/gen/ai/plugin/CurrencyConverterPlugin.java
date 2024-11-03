@@ -15,7 +15,7 @@ public class CurrencyConverterPlugin {
 
     @DefineKernelFunction(
             name = "convert_currency",
-            description = "Convert amount of money from currency to another",
+            description = "Convert amount of money from one currency to another",
             returnDescription = "Returns amount of money converted from one currency to another",
             returnType = "java.lang.Double")
     public Mono<Double> convert(
