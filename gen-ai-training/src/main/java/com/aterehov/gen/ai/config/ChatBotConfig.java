@@ -1,13 +1,17 @@
 package com.aterehov.gen.ai.config;
 
-
-import com.aterehov.gen.ai.plugin.ChatBotResponseFormatPlugin;
+import com.aterehov.gen.ai.domain.Currency;
+import com.aterehov.gen.ai.plugin.AgePlugin;
 import com.aterehov.gen.ai.plugin.ConversationSummaryPlugin;
+import com.aterehov.gen.ai.plugin.CurrencyConverterPlugin;
+import com.aterehov.gen.ai.service.semantickernel.CurrencyConverterServiceImpl;
 import com.azure.ai.openai.OpenAIAsyncClient;
 import com.azure.ai.openai.OpenAIClientBuilder;
 import com.azure.core.credential.AzureKeyCredential;
 import com.microsoft.semantickernel.Kernel;
 import com.microsoft.semantickernel.aiservices.openai.chatcompletion.OpenAIChatCompletion;
+import com.microsoft.semantickernel.contextvariables.ContextVariableTypeConverter;
+import com.microsoft.semantickernel.contextvariables.ContextVariableTypes;
 import com.microsoft.semantickernel.orchestration.InvocationContext;
 import com.microsoft.semantickernel.orchestration.InvocationReturnMode;
 import com.microsoft.semantickernel.orchestration.PromptExecutionSettings;
@@ -37,7 +41,7 @@ public class ChatBotConfig {
     @Value("${client-azureopenai-max-tokens:1024}")
     private int maxTokens;
 
-    @Value("${client-azureopenai-top-p:0.5}")
+    @Value("${client-azureopenai-top-p:1}")
     private double topP;
 
     @Value("${client-azureopenai-frequency-penalty:2}")
@@ -60,34 +64,52 @@ public class ChatBotConfig {
     }
 
     @Bean
-    public KernelPlugin chatBotResponseFormatPlugin() {
-        return KernelPluginFactory.createFromObject(new ChatBotResponseFormatPlugin(),
-                "ChatBotResponseFormatPlugin");
+    public KernelPlugin agePlugin() {
+        return KernelPluginFactory.createFromObject(new AgePlugin(),
+                "AgePlugin");
+    }
+
+    @Bean
+    public KernelPlugin currencyConverterPlugin() {
+        return KernelPluginFactory.createFromObject(new CurrencyConverterPlugin(new CurrencyConverterServiceImpl()),
+                "CurrencyConverterPlugin");
     }
 
     @Bean
     public KernelPlugin conversationSummaryPlugin() {
-        return KernelPluginFactory.createFromObject(new ConversationSummaryPlugin(),
+        return KernelPluginFactory.createFromObject(new ConversationSummaryPlugin(executionSettings()),
                 "ConversationSummaryPlugin");
     }
 
     @Bean
     public Kernel kernel(ChatCompletionService chatCompletionService) {
+
+        var currencyConverter = new ContextVariableTypeConverter<>(Currency.class,
+                obj -> Currency.valueOf(obj.toString()), Enum::toString, Currency::valueOf);
+
+        ContextVariableTypes
+                .addGlobalConverter(currencyConverter);
+
         return Kernel.builder()
                 .withAIService(ChatCompletionService.class, chatCompletionService)
-                .withPlugin(chatBotResponseFormatPlugin())
+                .withPlugin(agePlugin())
+                .withPlugin(currencyConverterPlugin())
                 .withPlugin(conversationSummaryPlugin())
                 .build();
     }
 
     @Bean
-    public InvocationContext invocationContext() {
-        var executionSettings = PromptExecutionSettings.builder()
+    public PromptExecutionSettings executionSettings() {
+        return PromptExecutionSettings.builder()
                 .withTemperature(temperature)
                 .withMaxTokens(maxTokens)
                 .withTopP(topP)
                 .withFrequencyPenalty(frequencyPenalty)
                 .build();
+    }
+
+    @Bean
+    public InvocationContext invocationContext(PromptExecutionSettings executionSettings) {
         return new InvocationContext.Builder()
                 .withPromptExecutionSettings(executionSettings)
                 .withReturnMode(InvocationReturnMode.LAST_MESSAGE_ONLY)

@@ -6,10 +6,8 @@ import com.aterehov.gen.ai.dto.SystemMessageRequest;
 import com.aterehov.gen.ai.service.ChatBotService;
 import com.microsoft.semantickernel.Kernel;
 import com.microsoft.semantickernel.orchestration.*;
-import com.microsoft.semantickernel.plugin.KernelPlugin;
 import com.microsoft.semantickernel.semanticfunctions.KernelFunction;
 import com.microsoft.semantickernel.semanticfunctions.KernelFunctionArguments;
-import com.microsoft.semantickernel.semanticfunctions.KernelFunctionFromPrompt;
 import com.microsoft.semantickernel.services.chatcompletion.ChatCompletionService;
 import com.microsoft.semantickernel.services.chatcompletion.ChatHistory;
 import com.microsoft.semantickernel.services.chatcompletion.ChatMessageContent;
@@ -29,15 +27,6 @@ import java.util.function.Function;
 @RequiredArgsConstructor
 public class SemanticKernelChatBotService implements ChatBotService {
 
-    public static final String JSON_FORMAT_PROMPT = """
-            %s. Response should be in the following format (JSON), no other symbols allowed:\
-             {
-                "response": {Generated Response}
-            }
-            """;
-
-    public static final String KERNEL_FUNCTION_PROMPT = "Return exact response of this function without any modifications. {{%s input=\"%s\"}}";
-
     public static final String DEFAULT_SYSTEM_MESSAGE = "You are a helpful assistant.";
 
     private final Kernel kernel;
@@ -45,8 +34,6 @@ public class SemanticKernelChatBotService implements ChatBotService {
     private final ChatCompletionService chatCompletionService;
 
     private final InvocationContext invocationContext;
-
-    private final KernelPlugin conversationSummaryPlugin;
 
     private ChatHistory chatHistory;
 
@@ -67,43 +54,35 @@ public class SemanticKernelChatBotService implements ChatBotService {
     }
 
     @Override
-    public Flux<String> getResponse(Mono<ChatBotRequest> chatBotRequest) {
+    public Flux<ChatBotResponse> getResponse(Mono<ChatBotRequest> chatBotRequest) {
 
         return chatBotRequest
                 .flatMapMany(request -> generateResponseFromAI(request.input()))
                 .flatMapIterable(Function.identity())
                 .map(ChatMessageContent::getContent)
+                .map(ChatBotResponse::new)
                 .onErrorMap(this::handleException);
     }
 
-    private Mono<List<ChatMessageContent<?>>> generateResponseFromAI(String input) {
-        this.chatHistory.addUserMessage(JSON_FORMAT_PROMPT.formatted(input));
-        return chatCompletionService
-                .getChatMessageContentsAsync(chatHistory, kernel, invocationContext);
-    }
-
     @Override
-    public Mono<String> getConversationSummary() {
-        KernelFunction<String> summarizeConversation = this.kernel
+    public Mono<ChatBotResponse> getConversationSummary() {
+        KernelFunction<String> summarizeConversation = kernel
                 .getFunction("ConversationSummaryPlugin",
                         "summarizeConversation");
         var arguments = KernelFunctionArguments.builder()
                 .withVariable("input", this.chatHistory)
-                 .build();
+                .build();
         return kernel.invokeAsync(summarizeConversation)
                 .withArguments(arguments)
                 .map(FunctionResult::getResult)
-                .flatMap(this::formatResponseKernelFunction);
-
+                .map(ChatBotResponse::new);
     }
 
-    private Mono<String> formatResponseKernelFunction(String input) {
-        KernelFunction<String> prompt = KernelFunctionFromPrompt
-                .<String>createFromPrompt(KERNEL_FUNCTION_PROMPT
-                        .formatted("ChatBotResponseFormatPlugin.responseObject", input))
-                .build();
-        FunctionInvocation<String> functionInvocation = prompt.invokeAsync(kernel);
-        return functionInvocation.map(FunctionResult::getResult);
+
+    private Mono<List<ChatMessageContent<?>>> generateResponseFromAI(String input) {
+        this.chatHistory.addUserMessage(input);
+        return chatCompletionService
+                .getChatMessageContentsAsync(chatHistory, kernel, invocationContext);
     }
 
     private ResponseStatusException handleException(Throwable exception) {

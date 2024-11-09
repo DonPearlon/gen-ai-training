@@ -1,6 +1,7 @@
 package com.aterehov.gen.ai.controller;
 
 import com.aterehov.gen.ai.dto.ChatBotRequest;
+import com.aterehov.gen.ai.dto.ChatBotResponse;
 import com.aterehov.gen.ai.dto.SystemMessageRequest;
 import com.aterehov.gen.ai.service.ChatBotService;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +24,7 @@ public class ChatBotController {
      * Chat with AI model with usage of ChatCompletionService and ChatHistory
      */
     @PostMapping(value = "/chat", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Flux<String> getResponse(@RequestBody final Mono<ChatBotRequest> chatBotRequest) {
+    public Flux<ChatBotResponse> getResponse(@RequestBody final Mono<ChatBotRequest> chatBotRequest) {
         return chatBotService.getResponse(chatBotRequest);
     }
 
@@ -31,7 +32,7 @@ public class ChatBotController {
      * Summary of the conversation based on ChatHistory with usage of KernelFunction
      */
     @GetMapping(value = "/summary", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Mono<String> getSummary() {
+    public Mono<ChatBotResponse> getSummary() {
         return chatBotService.getConversationSummary();
     }
 
@@ -39,7 +40,7 @@ public class ChatBotController {
      * Clear ChatHistory
      */
     @PostMapping(value = "/chat/clear-history", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getClearChatHistory(@RequestBody final Mono<ChatBotRequest> chatBotRequest) {
+    public ResponseEntity<?> clearChatHistory() {
         chatBotService.initNewChatHistory();
         return ResponseEntity.ok().build();
     }
