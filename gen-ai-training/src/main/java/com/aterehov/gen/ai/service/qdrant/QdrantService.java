@@ -9,7 +9,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import io.qdrant.client.QdrantClient;
 import io.qdrant.client.grpc.Collections;
 import io.qdrant.client.grpc.Collections.CollectionOperationResponse;
-import io.qdrant.client.grpc.JsonWithInt;
 import io.qdrant.client.grpc.Points.SearchPoints;
 import io.qdrant.client.grpc.Points.PointStruct;
 import io.qdrant.client.grpc.Points.ScoredPoint;
@@ -31,7 +30,7 @@ import static io.qdrant.client.WithPayloadSelectorFactory.enable;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class QdrantVectorDbService implements VectorDbService {
+public class QdrantService implements VectorDbService {
 
     private static final long VECTOR_SIZE = 1536;
 
