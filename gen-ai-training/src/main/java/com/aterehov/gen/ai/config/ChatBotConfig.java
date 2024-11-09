@@ -4,10 +4,8 @@ import com.aterehov.gen.ai.domain.Currency;
 import com.aterehov.gen.ai.plugin.AgePlugin;
 import com.aterehov.gen.ai.plugin.ConversationSummaryPlugin;
 import com.aterehov.gen.ai.plugin.CurrencyConverterPlugin;
-import com.aterehov.gen.ai.service.semantickernel.CurrencyConverterServiceImpl;
+import com.aterehov.gen.ai.service.impl.CurrencyConverterServiceImpl;
 import com.azure.ai.openai.OpenAIAsyncClient;
-import com.azure.ai.openai.OpenAIClientBuilder;
-import com.azure.core.credential.AzureKeyCredential;
 import com.microsoft.semantickernel.Kernel;
 import com.microsoft.semantickernel.aiservices.openai.chatcompletion.OpenAIChatCompletion;
 import com.microsoft.semantickernel.contextvariables.ContextVariableTypeConverter;
@@ -26,12 +24,6 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class ChatBotConfig {
 
-    @Value("${client-azureopenai-key}")
-    private String apiKey;
-
-    @Value("${client-azureopenai-endpoint}")
-    private String endpoint;
-
     @Value("${client-azureopenai-deployment-name}")
     private String deploymentName;
 
@@ -46,14 +38,6 @@ public class ChatBotConfig {
 
     @Value("${client-azureopenai-frequency-penalty:2}")
     private double frequencyPenalty;
-
-    @Bean
-    public OpenAIAsyncClient openAIClient() {
-        return new OpenAIClientBuilder()
-                .credential(new AzureKeyCredential(apiKey))
-                .endpoint(endpoint)
-                .buildAsyncClient();
-    }
 
     @Bean
     public ChatCompletionService chatCompletionService(OpenAIAsyncClient openAIClient) {

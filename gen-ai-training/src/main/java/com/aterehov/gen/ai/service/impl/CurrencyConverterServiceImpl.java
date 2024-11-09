@@ -1,4 +1,4 @@
-package com.aterehov.gen.ai.service.semantickernel;
+package com.aterehov.gen.ai.service.impl;
 
 import com.aterehov.gen.ai.domain.Currency;
 import com.aterehov.gen.ai.service.CurrencyConverterService;
