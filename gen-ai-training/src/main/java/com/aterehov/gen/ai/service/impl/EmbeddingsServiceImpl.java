@@ -15,14 +15,14 @@ import java.util.List;
 @RequiredArgsConstructor
 public class EmbeddingsServiceImpl implements EmbeddingsService {
 
-    @Value("${transformer-deployment-name}")
-    private String transformerDeploymentName;
+    @Value("${text-embeddings-model-name}")
+    private String textEmbeddingsModelName;
 
     private final OpenAIAsyncClient openAIAsyncClient;
 
     @Override
     public Mono<Embeddings> retrieveEmbeddings(String text) {
         var qembeddingsOptions = new EmbeddingsOptions(List.of(text));
-        return openAIAsyncClient.getEmbeddings(transformerDeploymentName, qembeddingsOptions);
+        return openAIAsyncClient.getEmbeddings(textEmbeddingsModelName, qembeddingsOptions);
     }
 }

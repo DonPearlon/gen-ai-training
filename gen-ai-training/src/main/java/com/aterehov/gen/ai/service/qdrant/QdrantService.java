@@ -16,7 +16,9 @@ import io.qdrant.client.grpc.Points.UpdateResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
@@ -55,14 +57,16 @@ public class QdrantService implements VectorDbService {
                     var message = "Collection was created: [%s]".formatted(result.getResult());
                     log.info(message);
                     return message;
-                });
+                })
+                .onErrorMap(exception -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to create collection: ", exception));
     }
 
     @Override
     public Mono<String> processAndSaveText(VectorDbRequest request) {
         return embeddingsService.retrieveEmbeddings(request.text())
                 .map(embeddings -> createPointStructs(embeddings, request.text()))
-                .flatMap(this::saveVector);
+                .flatMap(this::saveVector)
+                .onErrorMap(exception -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to save text: ", exception));
     }
 
     @Override
@@ -70,7 +74,8 @@ public class QdrantService implements VectorDbService {
         return embeddingsService.retrieveEmbeddings(request.text())
                 .map(this::createQueryVector)
                 .flatMap(this::search)
-                .map(this::createResponse);
+                .map(this::createResponse)
+                .onErrorMap(exception -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Search failed: ", exception));
     }
 
     private Mono<List<ScoredPoint>> search(List<Float> queryVector) {
