@@ -1,13 +1,15 @@
 package com.aterehov.gen.ai.config;
 
 import com.aterehov.gen.ai.domain.Currency;
+import com.aterehov.gen.ai.dto.VectorDbRequest;
+import com.aterehov.gen.ai.dto.VectorDbResponse;
 import com.aterehov.gen.ai.plugin.AgePlugin;
 import com.aterehov.gen.ai.plugin.ConversationSummaryPlugin;
 import com.aterehov.gen.ai.plugin.CurrencyConverterPlugin;
-import com.aterehov.gen.ai.service.semantickernel.CurrencyConverterServiceImpl;
+import com.aterehov.gen.ai.plugin.ProductReviewPlugin;
+import com.aterehov.gen.ai.service.VectorDbService;
+import com.aterehov.gen.ai.service.impl.CurrencyConverterServiceImpl;
 import com.azure.ai.openai.OpenAIAsyncClient;
-import com.azure.ai.openai.OpenAIClientBuilder;
-import com.azure.core.credential.AzureKeyCredential;
 import com.microsoft.semantickernel.Kernel;
 import com.microsoft.semantickernel.aiservices.openai.chatcompletion.OpenAIChatCompletion;
 import com.microsoft.semantickernel.contextvariables.ContextVariableTypeConverter;
@@ -19,18 +21,13 @@ import com.microsoft.semantickernel.orchestration.ToolCallBehavior;
 import com.microsoft.semantickernel.plugin.KernelPlugin;
 import com.microsoft.semantickernel.plugin.KernelPluginFactory;
 import com.microsoft.semantickernel.services.chatcompletion.ChatCompletionService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class ChatBotConfig {
-
-    @Value("${client-azureopenai-key}")
-    private String apiKey;
-
-    @Value("${client-azureopenai-endpoint}")
-    private String endpoint;
 
     @Value("${client-azureopenai-deployment-name}")
     private String deploymentName;
@@ -47,13 +44,8 @@ public class ChatBotConfig {
     @Value("${client-azureopenai-frequency-penalty:2}")
     private double frequencyPenalty;
 
-    @Bean
-    public OpenAIAsyncClient openAIClient() {
-        return new OpenAIClientBuilder()
-                .credential(new AzureKeyCredential(apiKey))
-                .endpoint(endpoint)
-                .buildAsyncClient();
-    }
+    @Autowired
+    private VectorDbService vectorDbService;
 
     @Bean
     public ChatCompletionService chatCompletionService(OpenAIAsyncClient openAIClient) {
@@ -82,19 +74,38 @@ public class ChatBotConfig {
     }
 
     @Bean
+    public KernelPlugin productReviewPlugin() {
+        return KernelPluginFactory.createFromObject(new ProductReviewPlugin(vectorDbService),
+                "ProductReviewPlugin");
+    }
+
+    @Bean
     public Kernel kernel(ChatCompletionService chatCompletionService) {
 
         var currencyConverter = new ContextVariableTypeConverter<>(Currency.class,
                 obj -> Currency.valueOf(obj.toString()), Enum::toString, Currency::valueOf);
 
+        var vectorDbRequestConverter = new ContextVariableTypeConverter<>(VectorDbRequest.class,
+                obj -> new VectorDbRequest(obj.toString()), VectorDbRequest::text, VectorDbRequest::new);
+
+        var vectorDbResponseConverter = new ContextVariableTypeConverter<>(VectorDbResponse.class,
+                obj -> new VectorDbResponse(obj.toString(), null), VectorDbResponse::toString, response -> new VectorDbResponse(response, null));
+
         ContextVariableTypes
                 .addGlobalConverter(currencyConverter);
+
+        ContextVariableTypes
+                .addGlobalConverter(vectorDbRequestConverter);
+
+        ContextVariableTypes
+                .addGlobalConverter(vectorDbResponseConverter);
 
         return Kernel.builder()
                 .withAIService(ChatCompletionService.class, chatCompletionService)
                 .withPlugin(agePlugin())
                 .withPlugin(currencyConverterPlugin())
                 .withPlugin(conversationSummaryPlugin())
+                .withPlugin(productReviewPlugin())
                 .build();
     }
 
