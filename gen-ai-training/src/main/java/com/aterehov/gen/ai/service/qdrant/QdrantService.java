@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
@@ -36,7 +37,7 @@ public class QdrantService implements VectorDbService {
 
     private static final long VECTOR_SIZE = 1536;
 
-    private static final long SEARCH_LIMIT = 3;
+    private static final long SEARCH_LIMIT = 10;
 
     @Value("${qdrant-collection-name}")
     private String collectionName;
@@ -46,19 +47,10 @@ public class QdrantService implements VectorDbService {
     private final EmbeddingsService embeddingsService;
 
     @Override
-    public Mono<String> createCollection() {
-        ListenableFuture<CollectionOperationResponse> future = qdrantClient.createCollectionAsync(collectionName,
-                Collections.VectorParams.newBuilder()
-                        .setDistance(Collections.Distance.Cosine)
-                        .setSize(VECTOR_SIZE)
-                        .build());
-        return toMono(future)
-                .map(result -> {
-                    var message = "Collection was created: [%s]".formatted(result.getResult());
-                    log.info(message);
-                    return message;
-                })
-                .onErrorMap(exception -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to create collection: ", exception));
+    public Flux<String> processAndSaveText(List<VectorDbRequest> requests) {
+        return Flux.fromIterable(requests)
+                .flatMap(this::processAndSaveText)
+                .onErrorResume(exception -> Flux.just("Failed save text: " + exception.getMessage()));
     }
 
     @Override
@@ -77,6 +69,22 @@ public class QdrantService implements VectorDbService {
                 .map(this::createResponse)
                 .onErrorMap(exception -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Search failed: ", exception));
     }
+
+    @Override
+    public Mono<Object> createCollection() {
+        ListenableFuture<CollectionOperationResponse> future = qdrantClient.createCollectionAsync(collectionName,
+                Collections.VectorParams.newBuilder()
+                        .setDistance(Collections.Distance.Cosine)
+                        .setSize(VECTOR_SIZE)
+                        .build());
+        return toMono(future)
+                .map(result -> {
+                    var message = "Collection was created: [%s]".formatted(result.getResult());
+                    log.info(message);
+                    return message;
+                });
+    }
+
 
     private Mono<List<ScoredPoint>> search(List<Float> queryVector) {
         ListenableFuture<List<ScoredPoint>> future = qdrantClient
